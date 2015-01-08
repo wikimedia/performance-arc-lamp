@@ -1,0 +1,17 @@
+base_path: /srv/xenon/logs
+logs:
+  - format: "%Y-%m-%d_%H"
+    period: hourly
+    retain: 24
+  - format: "%Y-%m-%d"
+    period: daily
+    retain: 30
+  - format: "%Y-%W"
+    period: weekly
+    retain: 52
+  - format: "%Y-%m"
+    period: monthly
+    retain: 12
+redis:
+  host: "127.0.0.1"
+  port: 6379
