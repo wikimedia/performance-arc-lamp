@@ -28,9 +28,11 @@ hhvm.xenon.period =  60 * servers / desired_number_of_samples_per_minute
 So, for example, if you want to log a trace every 30 seconds, and you
 have 10 PHP application servers, the value is 60 * 10 / 0.5 = 300.
 
-Next, edit `$xenonRedisServer` and `$xenonRedisPort` in
-`xenon_handler.php` and incorporate the code from that file into your
-application.
+```php
+require_once 'ArcLamp.php';
+
+register_shutdown_function( 'ArcLamp\logXenonData', array( '127.0.0.1', 6379 ) );
+```
 
 ## License
 
