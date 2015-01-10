@@ -1,0 +1,19 @@
+{
+    "name": "wikimedia/arc-lamp",
+    "description": "Log processor for HHVM's Xenon extension",
+    "keywords": [ "HHVM", "profiling", "xenon" ],
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Ori Livneh",
+            "email": "ori@wikimedia.org"
+        }
+    ],
+    "require": {
+        "hhvm": ">=3.0.0",
+        "ext-redis": "*"
+    },
+    "autoload": {
+        "files": [ "ArcLamp.php" ]
+    }
+}
