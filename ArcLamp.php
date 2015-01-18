@@ -31,10 +31,8 @@ namespace ArcLamp;
  *
  * @param Redis|array|string $redis A Redis instance, a Redis server name,
  *   or an array of arguments for Redis::connect.
- * @param array|null A list of function names to omit from traces, if any.
- *   By default, ArcLamp omits 'include', 'require' and anonymous functions.
  */
-function logXenonData($redis = 'localhost', $exclude = null) {
+function logXenonData($redis = 'localhost') {
 	if (!extension_loaded('xenon')) {
 		return;
 	}
@@ -51,7 +49,7 @@ function logXenonData($redis = 'localhost', $exclude = null) {
 	if (!$conn) {
 		return;
 	}
-	foreach (combineSamples($data, $exclude) as $stack => $count) {
+	foreach (combineSamples($data) as $stack => $count) {
 		$conn->publish('xenon', "$stack $count");
 	}
 }
@@ -60,14 +58,9 @@ function logXenonData($redis = 'localhost', $exclude = null) {
  * Collate Xenon traces.
  *
  * @param array $xenonSamples Xenon samples, as returned by xenon_get_data().
- * @param array|null $exclude A list of function names to omit from traces.
- *   By default, ArcLamp omits 'include', 'require' and anonymous functions.
  * @return array A hash of (collapsed call stack => times seen).
  */
-function combineSamples($xenonSamples, $exclude = null) {
-	if ($exclude === null) {
-		$exclude = array('include', 'require', '{closure}');
-	}
+function combineSamples($xenonSamples) {
 	$stacks = array();
 	foreach ($xenonSamples as $sample) {
 		if (empty($sample['phpStack'])) {
@@ -75,8 +68,18 @@ function combineSamples($xenonSamples, $exclude = null) {
 		}
 		$stack = array();
 		foreach ($sample['phpStack'] as $frame) {
-			$func = $frame['function'];
-			if ($func !== end($stack) && !in_array($func, $exclude)) {
+			if ($func === 'include') {
+				// For global (file) scope, use the file name.
+				$func = $frame['file'];
+			} elseif ($func === '{closure}' && isset($frame['line'])) {
+				// Annotate anonymous functions with their source location.
+				// Example: {closure:/path/to/file.php(123)}
+				$func = "{closure:{$frame['file']}({$frame['line']})}";
+			} else {
+				$func = $frame['function'];
+			}
+			// Recursive calls are collapsed.
+			if ($func !== end($stack)) {
 				$stack[] = $func;
 			}
 		}
