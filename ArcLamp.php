@@ -68,6 +68,7 @@ function combineSamples($xenonSamples) {
 		}
 		$stack = array();
 		foreach ($sample['phpStack'] as $frame) {
+			$func = $frame['function'];
 			if ($func === 'include') {
 				// For global (file) scope, use the file name.
 				$func = $frame['file'];
