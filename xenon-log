@@ -21,6 +21,7 @@ import errno
 import logging
 import os
 import os.path
+import re
 
 import redis
 import yaml
@@ -48,31 +49,28 @@ class TimeLog(object):
         except OSError as exc:
             if exc.errno != errno.EEXIST: raise
 
-    def get_time_from_file(self, file_name):
-        return datetime.datetime.strptime(file_name, self.format + '.log')
-
-    def get_file_from_time(self, time=None):
+    def write(self, message, time=None, tag=None):
         time = datetime.datetime.utcnow() if time is None else time
-        return time.strftime(self.format) + '.log'
-
-    def write(self, message, time=None):
-        file = os.path.join(self.path, self.get_file_from_time(time))
-        if not os.path.isfile(file):
+        suffix = '.%s.log' % tag if tag else '.log'
+        base_name = time.strftime(self.format) + suffix
+        file_path = os.path.join(self.path, base_name)
+        if not os.path.isfile(file_path):
             self.prune_files()
-        with open(file, 'a') as f:
+        with open(file_path, 'a') as f:
             print(message, file=f)
 
     def prune_files(self):
         files = {}
-        for file in os.listdir(self.path):
+        for base_name in os.listdir(self.path):
+            file_path = os.path.join(self.path, base_name)
             try:
-                files[file] = self.get_time_from_file(file)
+                files[file_path] = os.path.getctime(file_path)
             except ValueError:
                 continue
         files = list(sorted(files, key=files.get, reverse=True))
-        for file in files[self.retain:]:
+        for file_path in files[self.retain:]:
             try:
-                os.remove(os.path.join(self.path, file))
+                os.remove(file_path)
             except OSError:
                 continue
 
@@ -83,8 +81,17 @@ conn = redis.Redis(**config['redis'])
 pubsub = conn.pubsub()
 pubsub.subscribe('xenon')
 
+
+def get_tag(raw_stack):
+    m = re.match(r'(?:[^;]+/)*(\w+).php', raw_stack)
+    return m.group(1) if m else None
+
+
 for message in pubsub.listen():
     data = message['data']
     time = datetime.datetime.utcnow()
+    tag = get_tag(data)
     for log in logs:
         log.write(data, time)
+        if tag:
+            log.write(data, time, tag)
