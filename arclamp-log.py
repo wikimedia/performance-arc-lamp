@@ -84,16 +84,26 @@ class TimeLog(object):
 
     base_path = config.get('base_path', '/srv/arclamp/logs')
 
-    def __init__(self, period, format, retain):
+    def __init__(self, period, format, retain, sample_pop=1):
         self.period = period
         self.format = format
         self.retain = retain
+        self.sample_pop = sample_pop
+        self.samples_skipped = 0
         self.path = os.path.join(self.base_path, period)
         try:
             os.makedirs(self.path, 0755)
         except OSError as exc:
             if exc.errno != errno.EEXIST:
                 raise
+
+    def in_sample(self):
+        self.samples_skipped += 1
+        if self.samples_skipped >= self.sample_pop:
+            self.samples_skipped = 0
+            return True
+        else:
+            return False
 
     def write(self, message, time=None, tag='all'):
         time = datetime.datetime.utcnow() if time is None else time
@@ -149,6 +159,7 @@ while True:
     time = datetime.datetime.utcnow()
     tag = get_tag(str(data))
     for log in logs:
-        log.write(data, time, 'all')
-        if tag:
-            log.write(data, time, tag)
+        if log.in_sample():
+            log.write(data, time, 'all')
+            if tag:
+                log.write(data, time, tag)
