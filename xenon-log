@@ -38,10 +38,12 @@ class TimeLog(object):
 
     base_path = config.get('base_path', '/srv/xenon/logs')
 
-    def __init__(self, period, format, retain):
+    def __init__(self, period, format, retain, write_every=1):
         self.period = period
         self.format = format
         self.retain = retain
+        self.write_every = write_every
+        self.skipped = 0
         self.path = os.path.join(self.base_path, period)
         try:
             os.makedirs(self.path, 0755)
@@ -56,11 +58,14 @@ class TimeLog(object):
         return time.strftime(self.format) + '.log'
 
     def write(self, message, time=None):
-        file = os.path.join(self.path, self.get_file_from_time(time))
-        if not os.path.isfile(file):
-            self.prune_files()
-        with open(file, 'a') as f:
-            print(message, file=f)
+        self.skipped += 1
+        if self.skipped >= self.write_every:
+            self.skipped = 0
+            file = os.path.join(self.path, self.get_file_from_time(time))
+            if not os.path.isfile(file):
+                self.prune_files()
+            with open(file, 'a') as f:
+                print(message, file=f)
 
     def prune_files(self):
         files = {}
