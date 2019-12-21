@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-  xenon-log
+  arclamp-log
   ~~~~~~~~~
-  
-  `xenon` is a built-in HHVM extension that periodically captures
-  stacktraces of running PHP code. This tool reads xenon-generated
-  traces via redis and logs them to disk.
+
+  This Arc Lamp components reads strack traces from a Redis channel,
+  and writes them to one or more log files, organised by date
+  and application entry point.
 
 """
 from __future__ import print_function
@@ -19,7 +19,6 @@ import argparse
 import datetime
 import errno
 import fnmatch
-import logging
 import os
 import os.path
 import re
@@ -29,7 +28,42 @@ import yaml
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('config', nargs='?', default='/etc/xenon-log.yaml')
+# Configuration keys:
+#
+# base_path: Directory in which files should be created. [optional]
+#            Default: "/srv/arclamp/logs".
+#
+# redis: Parameters to establish a connection using python-redis.
+#   host: [required]
+#   port: [required]
+#
+# redis_channel: The name of the Redis PubSub channel to subscribe to. [optional]
+#                Default: "arclamp".
+#
+# logs: A list of one or more log file groups. [required]
+#
+#       Each log group has a date-time string that informs how much time a
+#       single file in the group represents (e.g. an hour or a day), and what
+#       pattern to use for the file name.
+#
+#       format: Format string for Python strftime. This informs both the
+#               time aggregation and the filename.
+#
+#               The formatted time and the suffix ".{tag}.log" together
+#               form the log file name. The "tag" represents the application
+#               entry point. All traces are also written to a second file,
+#               with the tag "all", which combines all entry points.
+#               The tag is determined by the first frame of the stack trace.
+#               For example, a stack "index.php;main;Stuff::doIt 1" will be
+#               written to "{format}.all.log" and "{format}.index.log".
+#
+#       period: Directory name. The files formatted by 'format' will be
+#               placed in a sub directory of 'base_path' by this name.
+#       retain: How many files to keep in the 'period' directory for
+#               a single application entry point. Once this has been exceeded,
+#               files exceeding this limit will be removed (oldest first).
+#
+parser.add_argument('config', nargs='?', default='/etc/arclamp-log.yaml')
 args = parser.parse_args()
 
 with open(args.config) as f:
@@ -38,7 +72,7 @@ with open(args.config) as f:
 
 class TimeLog(object):
 
-    base_path = config.get('base_path', '/srv/xenon/logs')
+    base_path = config.get('base_path', '/srv/arclamp/logs')
 
     def __init__(self, period, format, retain):
         self.period = period
@@ -48,7 +82,8 @@ class TimeLog(object):
         try:
             os.makedirs(self.path, 0755)
         except OSError as exc:
-            if exc.errno != errno.EEXIST: raise
+            if exc.errno != errno.EEXIST:
+                raise
 
     def write(self, message, time=None, tag='all'):
         time = datetime.datetime.utcnow() if time is None else time
@@ -56,7 +91,8 @@ class TimeLog(object):
         file_path = os.path.join(self.path, base_name)
         if not os.path.isfile(file_path):
             self.prune_files(tag)
-        with open(file_path, 'a') as f:
+        # T169249 buffering=1 makes it line-buffered
+        with open(file_path, mode='a', buffering=1) as f:
             print(message, file=f)
 
     def prune_files(self, tag):
@@ -78,11 +114,10 @@ class TimeLog(object):
                 continue
 
 
-
 logs = [TimeLog(**log) for log in config['logs']]
 conn = redis.Redis(**config['redis'])
 pubsub = conn.pubsub()
-pubsub.subscribe('xenon')
+pubsub.subscribe(config.get('redis_channel', 'arclamp'))
 
 
 def get_tag(raw_stack):

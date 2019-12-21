@@ -1,0 +1,11 @@
+[Unit]
+Description=Instance of Arc Lamp for PHP trace logs
+
+[Service]
+User=arclamp
+Group=arclamp
+Restart=always
+ExecStart=/usr/bin/python /usr/local/bin/arclamp-log /etc/arclamp-log.yaml
+
+[Install]
+WantedBy=multi-user.target

@@ -1,11 +1,12 @@
-base_path: /srv/xenon/logs
+base_path: /srv/arclamp/logs
 logs:
   - format: "%Y-%m-%d_%H"
     period: hourly
-    retain: 24
+    # 336 hourly files = 14 days * 24 hourly files
+    retain: 336
   - format: "%Y-%m-%d"
     period: daily
-    retain: 30
+    retain: 45
 redis:
   host: "127.0.0.1"
   port: 6379

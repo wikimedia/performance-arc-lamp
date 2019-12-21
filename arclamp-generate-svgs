@@ -1,7 +1,8 @@
 #!/bin/bash
 set +C  # OK to clobber out-of-date SVGs
 shopt -s globstar nullglob
-for log in /srv/xenon/**/*.log; do
+
+for log in /srv/arclamp/**/*.log; do
     dir="$(dirname "$log")"
     period="$(basename "$dir")"
     time="$(basename "$log" ".log")"
@@ -19,7 +20,7 @@ for log in /srv/xenon/**/*.log; do
     }
 done
 
-for svgz in /srv/xenon/**/*.svgz; do
+for svgz in /srv/arclamp/**/*.svgz; do
     log="$(sed -e 's/svgz\?/log/g' -e 's/.reversed//' <<<"$svgz")"
     [ ! -f "$log" ] && rm -f "$svgz"
 done
