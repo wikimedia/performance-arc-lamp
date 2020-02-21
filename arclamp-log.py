@@ -74,10 +74,12 @@ class TimeLog(object):
 
     base_path = config.get('base_path', '/srv/arclamp/logs')
 
-    def __init__(self, period, format, retain):
+    def __init__(self, period, format, retain, write_every=1):
         self.period = period
         self.format = format
         self.retain = retain
+        self.write_every = write_every
+        self.skipped = 0
         self.path = os.path.join(self.base_path, period)
         try:
             os.makedirs(self.path, 0755)
@@ -86,14 +88,17 @@ class TimeLog(object):
                 raise
 
     def write(self, message, time=None, tag='all'):
-        time = datetime.datetime.utcnow() if time is None else time
-        base_name = '%s.%s.log' % (time.strftime(self.format), tag)
-        file_path = os.path.join(self.path, base_name)
-        if not os.path.isfile(file_path):
-            self.prune_files(tag)
-        # T169249 buffering=1 makes it line-buffered
-        with open(file_path, mode='a', buffering=1) as f:
-            print(message, file=f)
+        self.skipped += 1
+        if self.skipped >= self.write_every:
+            self.skipped = 0
+            time = datetime.datetime.utcnow() if time is None else time
+            base_name = '%s.%s.log' % (time.strftime(self.format), tag)
+            file_path = os.path.join(self.path, base_name)
+            if not os.path.isfile(file_path):
+                self.prune_files(tag)
+            # T169249 buffering=1 makes it line-buffered
+            with open(file_path, mode='a', buffering=1) as f:
+                print(message, file=f)
 
     def prune_files(self, tag):
         mask = '*.%s.log' % tag
