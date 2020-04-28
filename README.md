@@ -24,7 +24,7 @@ option. See [Wikimedia's own configuration](https://github.com/wikimedia/operati
 
 ## How it works
 
-<img src="https://upload.wikimedia.org/wikipedia/labs/2/22/ArcLamp_2019_arch.png" height="293" alt=""/>
+![](./doc/ArcLamp_2019_diagram.png)
 
 The Arc Lamp pipeline comprises of three stages:
 
