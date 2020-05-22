@@ -11,34 +11,117 @@ if [ ! -x "$flamegraph" ]; then
 fi
 
 set -e
-set +C  # OK to clobber out-of-date SVGs
+set -u
+set +C # OK to clobber out-of-date SVGs
 shopt -s globstar nullglob
 
-for log in /srv/arclamp/**/*.log; do
-    if [ ! -r "$log" ]; then
-        # It's possible for the log to be removed between when the
-        # shell glob is calculated and when all files are processed.
-        # See T243762.
-        continue
-    fi
-    dir="$(dirname "$log")"
-    period="$(basename "$dir")"
-    time="$(basename "$log" ".log")"
-    title="MediaWiki - ${period} - ${time/_/ }"
-    svg="${log//log/svg}z"
-    rsvg="${svg//.svgz/.reversed.svgz}"
-    mkdir -m0755 -p "$(dirname $svg)"
-    [ ! -f "$svg" -o "$svg" -ot "$log" ] && {
-        echo "Generating ${svg}..."
-        nice $flamegraph --minwidth=1 --title="$title" "$log" | gzip -9 > "$svg"
-    }
-    [ ! -f "$rsvg" -o "$rsvg" -ot "$log" ] && {
-        echo "Generating ${rsvg}..."
-        nice $flamegraph --minwidth=1 --reverse --colors=blue --title="$title - reversed" "$log" | gzip -9 > "$rsvg"
-    }
-done
+function svg_path_for_log_and_fqfn_label() {
+  # Log file, e.g. /srv/xenon/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
+  local log_path="$1"
+  # Stable label for a fully-qualified function name or "{main}"
+  local function_label="$2"
+  # Either "forward" or "reversed"
+  local call_flow="$3"
 
-for svgz in /srv/arclamp/**/*.svgz; do
-    log="$(sed -e 's/svgz\?/log/g' -e 's/.reversed//' <<<"$svgz")"
-    [ ! -f "$log" ] && rm -f "$svgz"
-done
+  local svg_path
+  svg_path="$(sed -e 's#/logs/#/svgs/#g' -e 's#\.log$##' <<<"$log_path")"
+  if [ "$function_label" != "{main}" ]; then
+    svg_path+=".fn-${function_label}"
+  fi
+  if [ "$call_flow" != 'forward' ]; then
+    svg_path+=".${call_flow}"
+  fi
+  svg_path+=".svgz"
+
+  # SVG file, e.g. /srv/xenon/svgs/INTERVAL/YYYY-MM-DD.excimer.ENTRY(.fn-FUNCTION)?(.reversed.)?.svgz
+  echo "$svg_path"
+}
+
+function source_log_path_for_svg() {
+  # SVG file, e.g. /srv/xenon/svgs/INTERVAL/YYYY-MM-DD.excimer.ENTRY(.fn-FUNCTION)?(.reversed.)?.svgz
+  local svg_path="$1"
+
+  local log_path
+  log_path=$(sed -e 's#/svgs/#/logs/#g' -e 's#\(\.fn-[^./]*\)\?\(\.reversed\)\?\.svgz\?$##' <<<"$svg_path")
+  log_path+=".log"
+
+  # Log file, e.g. /srv/xenon/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
+  echo "$log_path"
+}
+
+function stream_log_lines_mentioning_fqfn() {
+  local log="$1"
+  local fqfn="$2"
+
+  if [ "$fqfn" == "{main}" ]; then
+    cat "$log"
+  else
+    nice grep -a ";${fqfn};" "$log"
+  fi
+}
+
+function update_log_svgs_for_fqfn() {
+  local log="$1"
+  local fqfn="$2"
+  local function_label="$3"
+
+  local period time ftitle fsvg rsvg
+  period="$(basename "$(dirname "$log")")"
+  time="$(basename "$log" ".log")"
+  ftitle="MediaWiki - ${period} - ${time/_/ }"
+  rtitle="$ftitle - reversed"
+  fsvg="$(svg_path_for_log_and_fqfn_label "$log" "$function_label" "forward")"
+  rsvg="$(svg_path_for_log_and_fqfn_label "$log" "$function_label" "reversed")"
+
+  # Bail if both flamegraphs are already up to date
+  if [ -s "$fsvg" ] && [ "$fsvg" -nt "$log" ] && [ -s "$rsvg" ] && [ "$rsvg" -nt "$log" ]; then
+    return
+  fi
+  # shellcheck disable=SC2174
+  mkdir -m0755 -p "$(dirname "$fsvg")" "$(dirname "$rsvg")"
+  echo "Generating $fsvg and $rsvg..."
+  # Scan the log file once, feeding the same output to forward and reverse flamegraph processes
+  stream_log_lines_mentioning_fqfn "$log" "$fqfn" | tee \
+    >(nice $flamegraph --minwidth=1 --title="$ftitle" | gzip -9 >"$fsvg") \
+    >(nice $flamegraph --minwidth=1 --reverse --colors=blue --title="$rtitle" | gzip -9 >"$rsvg") \
+    > /dev/null
+}
+
+function update_svgs_for_existing_logs() {
+  local data_dir="$1"
+
+  declare -A label_by_fqfn_with_dedicated_svgs=(
+    [EditAction::show]="EditAction"
+    [MediaWiki::doPreOutputCommit]="PreSend"
+    [MediaWiki::doPostOutputShutdown]="PostSend"
+  )
+
+  for log in "$data_dir"/**/*.log; do
+    # T243762: It's possible for the log to be removed between when
+    # the shell glob is calculated and when all files are processed.
+    [ -r "$log" ] || continue
+    # Overall forward+reverse SVGs for this log file
+    update_log_svgs_for_fqfn "${log}" "{main}" "{main}"
+    # Function-specific forward+reverse SVGs for this log file
+    case $log in *.all.log)
+      for fqfn in "${!label_by_fqfn_with_dedicated_svgs[@]}"; do
+        update_log_svgs_for_fqfn "${log}" "${fqfn}" "${label_by_fqfn_with_dedicated_svgs[$fqfn]}"
+      done
+      ;;
+    esac
+  done
+}
+
+function delete_svgs_for_nonexistant_logs() {
+  local data_dir="$1"
+
+  local log
+
+  for svgz in "$data_dir"/**/*.svgz; do
+    log="$(source_log_path_for_svg "$svgz")"
+    [ ! -f "$log" ] && rm -f "$svgz" || true
+  done
+}
+
+update_svgs_for_existing_logs /srv/arclamp
+delete_svgs_for_nonexistant_logs /srv/arclamp
