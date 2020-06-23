@@ -1,4 +1,15 @@
 #!/bin/bash
+
+# Prefer flamegraph.pl in current directory.  If not found, look in PATH.
+flamegraph=`dirname $0`/flamegraph.pl
+if [ ! -x "$flamegraph" ]; then
+    flamegraph=`which flamegraph.pl`
+    if [ ! -x "$flamegraph" ]; then
+        echo "$0: cannot execute flamegraph.pl" >&2
+        exit 1
+    fi
+fi
+
 set -e
 set +C  # OK to clobber out-of-date SVGs
 shopt -s globstar nullglob
@@ -19,11 +30,11 @@ for log in /srv/arclamp/**/*.log; do
     mkdir -m0755 -p "$(dirname $svg)"
     [ ! -f "$svg" -o "$svg" -ot "$log" ] && {
         echo "Generating ${svg}..."
-        nice /usr/local/bin/flamegraph.pl --minwidth=1 --title="$title" "$log" | gzip -9 > "$svg"
+        nice $flamegraph --minwidth=1 --title="$title" "$log" | gzip -9 > "$svg"
     }
     [ ! -f "$rsvg" -o "$rsvg" -ot "$log" ] && {
         echo "Generating ${rsvg}..."
-        nice /usr/local/bin/flamegraph.pl --minwidth=1 --reverse --colors=blue --title="$title - reversed" "$log" | gzip -9 > "$rsvg"
+        nice $flamegraph --minwidth=1 --reverse --colors=blue --title="$title - reversed" "$log" | gzip -9 > "$rsvg"
     }
 done
 

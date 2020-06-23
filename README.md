@@ -24,7 +24,7 @@ option. See [Wikimedia's own configuration](https://github.com/wikimedia/operati
 
 ## How it works
 
-![](./doc/ArcLamp_2019_diagram.png)
+![](./docs/ArcLamp_2019_diagram.png)
 
 The Arc Lamp pipeline comprises of three stages:
 
@@ -93,6 +93,8 @@ For example:
 * …
 
 The `arclamp-generate-svgs` script also removes graphs for which a trace log no longer exists.
+
+Flamegraphs are generated using Brendan Gregg's [flamegraph.pl](https://github.com/brendangregg/FlameGraph).
 
 ## Demo
 
