@@ -1,2 +1,6 @@
+# Development
 /vendor
 /composer.lock
+
+# Deployment
+/scap/log
