@@ -10,6 +10,9 @@ if [ ! -x "$flamegraph" ]; then
     fi
 fi
 
+# -e indicates this script should abort if any command does not exit
+# with status 0.  To debug this, you can print commands to stderr as
+# they are executed, by running: `bash -x arclamp-generate-svgs`.
 set -e
 set -u
 set +C # OK to clobber out-of-date SVGs
@@ -24,7 +27,7 @@ function svg_path_for_log_and_fqfn_label() {
   local call_flow="$3"
 
   local svg_path
-  svg_path="$(sed -e 's#/logs/#/svgs/#g' -e 's#\.log$##' <<<"$log_path")"
+  svg_path="$(sed -E -e 's#/logs/#/svgs/#g' -e 's#\.log(\.gz)?$##' <<<"$log_path")"
   if [ "$function_label" != "{main}" ]; then
     svg_path+=".fn-${function_label}"
   fi
@@ -53,10 +56,17 @@ function stream_log_lines_mentioning_fqfn() {
   local log="$1"
   local fqfn="$2"
 
+  local cmd_prefix=""
+  case "$log" in
+    *.gz)
+      cmd_prefix="z"
+      ;;
+  esac
+
   if [ "$fqfn" == "{main}" ]; then
-    cat "$log"
+    nice ${cmd_prefix}cat "$log"
   else
-    nice grep -a ";${fqfn};" "$log"
+    nice ${cmd_prefix}grep -a ";${fqfn};" "$log"
   fi
 }
 
@@ -67,7 +77,7 @@ function update_log_svgs_for_fqfn() {
 
   local period time ftitle fsvg rsvg
   period="$(basename "$(dirname "$log")")"
-  time="$(basename "$log" ".log")"
+  time="$(basename "$log" | sed -E 's/\.log(\.gz)?$//')"
   ftitle="MediaWiki - ${period} - ${time/_/ }"
   rtitle="$ftitle - reversed"
   fsvg="$(svg_path_for_log_and_fqfn_label "$log" "$function_label" "forward")"
@@ -96,7 +106,7 @@ function update_svgs_for_existing_logs() {
     [MediaWiki::doPostOutputShutdown]="PostSend"
   )
 
-  for log in "$data_dir"/**/*.log; do
+  for log in "$data_dir"/**/*.log{,.gz}; do
     # T243762: It's possible for the log to be removed between when
     # the shell glob is calculated and when all files are processed.
     [ -r "$log" ] || continue
@@ -119,7 +129,7 @@ function delete_svgs_for_nonexistant_logs() {
 
   for svgz in "$data_dir"/**/*.svgz; do
     log="$(source_log_path_for_svg "$svgz")"
-    [ ! -f "$log" ] && rm -f "$svgz" || true
+    [ ! -f "$log" -a ! -f "$log.gz" ] && rm -f "$svgz" || true
   done
 }
 

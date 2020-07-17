@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
   arclamp-grep -- analyze Arc Lamp logs. This is a CLI tool for parsing trace
@@ -44,12 +44,12 @@ import argparse
 import collections
 import fnmatch
 import glob
+import gzip
 import operator
 import os.path
 import re
 import sys
 import textwrap
-
 
 # Stack frames which match any of these shell-style wildcard patterns
 # are excluded from the leaderboard.
@@ -77,7 +77,12 @@ def parse_line(line):
 
 
 def grep(fname, search_string):
-    with open(fname) as f:
+    if fname.endswith(".gz"):
+        opener = gzip.open
+    else:
+        opener = open
+
+    with opener(fname) as f:
         for line in f:
             if search_string in line:
                 yield line
@@ -136,12 +141,13 @@ args = arg_parser.parse_args()
 
 # Legacy: the 'xenon' channel has a generic filename for now.
 if args.channel == 'xenon':
-    glob_pattern = '/srv/xenon/logs/%(resolution)s/*.%(entrypoint)s.log'
+    glob_pattern = '/srv/xenon/logs/%(resolution)s/*.%(entrypoint)s.log*'
 else:
-    glob_pattern = '/srv/xenon/logs/%(resolution)s/*.%(channel)s.%(entrypoint)s.log'
+    glob_pattern = '/srv/xenon/logs/%(resolution)s/*.%(channel)s.%(entrypoint)s.log*'
 file_names = glob.glob(glob_pattern % vars(args))
-file_names.sort(key=os.path.getctime)
+file_names.sort(key=os.path.getmtime)
 file_names = args.slice(file_names)
+file_names = [fn for fn in file_names if fn.endswith(".log.gz") or fn.endswith(".log")]
 counter = collections.Counter(iter_funcs(file_names))
 total = sum(1 for _ in counter.elements())
 

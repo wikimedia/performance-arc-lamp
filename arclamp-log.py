@@ -116,14 +116,16 @@ class TimeLog(object):
             print(message, file=f)
 
     def prune_files(self, tag):
-        mask = '*.%s.log' % tag
+        mask = '*.%s.log*' % tag
         files = {}
         for base_name in os.listdir(self.path):
             if not fnmatch.fnmatch(base_name, mask):
                 continue
+            if not base_name.endswith(".log") and not base_name.endswith(".log.gz"):
+                continue
             file_path = os.path.join(self.path, base_name)
             try:
-                files[file_path] = os.path.getctime(file_path)
+                files[file_path] = os.path.getmtime(file_path)
             except ValueError:
                 continue
         files = list(sorted(files, key=files.get, reverse=True))

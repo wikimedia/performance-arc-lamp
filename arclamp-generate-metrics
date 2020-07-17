@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# -e indicates this script should abort if any command does not exit
+# with status 0.  To debug this, you can print commands to stderr as
+# they are executed, by running: `bash -x arclamp-generate-metrics`.
 set -e
 set -u
 shopt -s globstar nullglob
