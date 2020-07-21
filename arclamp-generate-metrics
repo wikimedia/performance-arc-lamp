@@ -7,86 +7,126 @@ set -e
 set -u
 shopt -s globstar nullglob
 
+function print_metric() {
+	local metric="$1"
+	local period="$2"
+	local profiler="$3"
+	local entry="$4"
+	local value="$5"
+	local compressed="$6"
+
+	# Sanitize values which come from filesystem
+	period=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$period"`
+	profiler=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$profiler"`
+	entry=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$entry"`
+
+	if [ -n "$compressed" ]; then
+		echo "$metric{period=\"$period\",profiler=\"$profiler\",entry=\"$entry\",compressed=\"$compressed\"} $value"
+	else
+		echo "$metric{period=\"$period\",profiler=\"$profiler\",entry=\"$entry\"} $value"
+	fi
+}
+
 function update_metrics() {
 	local data_dir="$1"
 	local tmpout=`mktemp -t arclamp-metrics.XXXXXXXXXX`
 
 	local periods=`find $data_dir/logs -mindepth 1 -maxdepth 1 -type d -printf '%f '`
-	local instances=`find $data_dir/logs -type f | awk 'match($0, /\.([^\.]+)\.[^\.]+\.log(\.|$)/, a) {print a[1];}' | sort -u`
+	local profilers=`find $data_dir/logs -type f | awk 'match($0, /\.([^\.]+)\.[^\.]+\.log(\.|$)/, a) {print a[1];}' | sort -u`
 	local entries=`find $data_dir/logs -type f | awk 'match($0, /\.([^\.]+)\.log(\.|$)/, a) {print a[1];}' | sort -u`
 
 	echo "# HELP arclamp_oldest_log_seconds Timestamp of oldest input file" >>$tmpout
 	echo "# TYPE arclamp_oldest_log_seconds gauge" >>$tmpout
 	for period in $periods; do
-	for instance in $instances; do
-		for entry in $entries; do
-		local oldest=`find $data_dir/logs/$period -name "*$instance.$entry.log*" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
-		if [ -n "$oldest" ]; then
-			echo "arclamp_oldest_log_seconds{period=\"$period\",instance=\"$instance\",entry=\"$entry\"} $oldest" >>$tmpout
-		fi
+		for profiler in $profilers; do
+			for entry in $entries; do
+				local oldest=`find $data_dir/logs/$period -name "*$profiler.$entry.log" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
+				if [ -n "$oldest" ]; then
+					print_metric arclamp_oldest_log_seconds "$period" "$profiler" "$entry" "$oldest" "no" >>$tmpout
+				fi
+				oldest=`find $data_dir/logs/$period -name "*$profiler.$entry.log.gz" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
+				if [ -n "$oldest" ]; then
+					print_metric arclamp_oldest_log_seconds "$period" "$profiler" "$entry" "$oldest" "yes" >>$tmpout
+				fi
+			done
 		done
-	done
 	done
 
 	echo "# HELP arclamp_newest_log_seconds Timestamp of newest input file" >>$tmpout
 	echo "# TYPE arclamp_newest_log_seconds gauge" >>$tmpout
 	for period in $periods; do
-	for instance in $instances; do
-		for entry in $entries; do
-		local newest=`find $data_dir/logs/$period -name "*$instance.$entry.log*" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
-		if [ -n "$newest" ]; then
-			echo "arclamp_newest_log_seconds{period=\"$period\",instance=\"$instance\",entry=\"$entry\"} $newest" >>$tmpout
-		fi
+		for profiler in $profilers; do
+			for entry in $entries; do
+				local newest=`find $data_dir/logs/$period -name "*$profiler.$entry.log" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
+				if [ -n "$newest" ]; then
+					print_metric arclamp_newest_log_seconds "$period" "$profiler" "$entry" "$newest" "no" >>$tmpout
+				fi
+				newest=`find $data_dir/logs/$period -name "*$profiler.$entry.log.gz" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
+				if [ -n "$newest" ]; then
+					print_metric arclamp_newest_log_seconds "$period" "$profiler" "$entry" "$newest" "yes" >>$tmpout
+				fi
+			done
 		done
 	done
-	done
+
+	local oldest_tmp=`find $data_dir/logs -name "*.log.gz.tmp" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
+	if [ -n "$oldest_tmp" ]; then
+		echo "# HELP arclamp_oldest_temporary_file_seconds Timestamp of oldest temporary file" >>$tmpout
+		echo "# TYPE arclamp_oldest_temporary_file_seconds gauge" >>$tmpout
+		echo "arclamp_oldest_temporary_file_seconds $oldest_tmp" >>$tmpout
+	fi
 
 	echo "# HELP arclamp_oldest_svg_seconds Timestamp of oldest output file" >>$tmpout
 	echo "# TYPE arclamp_oldest_svg_seconds gauge" >>$tmpout
 	for period in $periods; do
-	for instance in $instances; do
-		for entry in $entries; do
-		local oldest=`find $data_dir/svgs/$period -name "*$instance.$entry.*svgz" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
-		if [ -n "$oldest" ]; then
-			echo "arclamp_oldest_svg_seconds{period=\"$period\",instance=\"$instance\",entry=\"$entry\"} $oldest" >>$tmpout
-		fi
+		for profiler in $profilers; do
+			for entry in $entries; do
+				local oldest=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
+				if [ -n "$oldest" ]; then
+					print_metric arclamp_oldest_svg_seconds "$period" "$profiler" "$entry" "$oldest" "" >>$tmpout
+				fi
+			done
 		done
-	done
 	done
 
 	echo "# HELP arclamp_newest_svg_seconds Timestamp of newest output file" >>$tmpout
 	echo "# TYPE arclamp_newest_svg_seconds gauge" >>$tmpout
 	for period in $periods; do
-	for instance in $instances; do
-		for entry in $entries; do
-		local newest=`find $data_dir/svgs/$period -name "*$instance.$entry.*svgz" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
-		if [ -n "$newest" ]; then
-			echo "arclamp_newest_svg_seconds{period=\"$period\",instance=\"$instance\",entry=\"$entry\"} $newest" >>$tmpout
-		fi
+		for profiler in $profilers; do
+			for entry in $entries; do
+				local newest=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
+				if [ -n "$newest" ]; then
+					print_metric arclamp_newest_svg_seconds "$period" "$profiler" "$entry" "$oldest" "" >>$tmpout
+				fi
+			done
 		done
-	done
 	done
 
 	echo "# HELP arclamp_log_bytes_total Size of input files" >>$tmpout
 	echo "# TYPE arclamp_log_bytes_total gauge" >>$tmpout
 	for period in $periods; do
-	local bytes=`du -sb $data_dir/logs/$period 2>/dev/null | cut -f1`
-	if [ -n "$bytes" ]; then
-		echo "arclamp_log_bytes_total{period=\"$period\"} $bytes" >>$tmpout
-	fi
+		local bytes=`du -sb $data_dir/logs/$period 2>/dev/null | cut -f1`
+		if [ -n "$bytes" ]; then
+			period=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$period"`
+			echo "arclamp_log_bytes_total{period=\"$period\"} $bytes" >>$tmpout
+		fi
 	done
 
 	echo "# HELP arclamp_svg_bytes_total Size of output files" >>$tmpout
 	echo "# TYPE arclamp_svg_bytes_total gauge" >>$tmpout
 	for period in $periods; do
-	local bytes=`du -sb $data_dir/svgs/$period 2>/dev/null | cut -f1`
-	if [ -n "$bytes" ]; then
-		echo "arclamp_svg_bytes_total{period=\"$period\"} $bytes" >>$tmpout
-	fi
+		local bytes=`du -sb $data_dir/svgs/$period 2>/dev/null | cut -f1`
+		if [ -n "$bytes" ]; then
+			period=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$period"`
+			echo "arclamp_svg_bytes_total{period=\"$period\"} $bytes" >>$tmpout
+		fi
 	done
 
 	mv $tmpout $data_dir/metrics
 	chmod 644 $data_dir/metrics
 }
+
+# Delete any old temporary files from failed runs:
+find $(dirname $(mktemp -u)) -name 'arclamp-metrics.*' -mmin 60 -type f -delete 2>/dev/null || true
 
 update_metrics /srv/arclamp
