@@ -1,0 +1,43 @@
+#!/bin/bash
+
+days="$1"
+case $days in
+	''|*[!0-9]*):
+		echo "usage: arclamp-compress-logs <age in days>" >&2
+		exit 1
+		;;
+esac
+
+# -e indicates this script should abort if any command does not exit
+# with status 0.  To debug this, you can print commands to stderr as
+# they are executed, by running: `bash -x arclamp-compress-logs`.
+set -e
+set -u
+shopt -s globstar nullglob
+
+function compress_log() {
+	local filename="$1"
+	echo "Compressing $filename"
+
+	# Files not matching *.log{,.gz} are ignored; we take advantage of
+	# this to prevent partially-compressed output from being consumed.
+	#
+	# -N is the default, but it is included explicitly here, to call
+	# out that the mtime of the compressed file *must* match the
+	# original.
+	#
+	# -k keeps the original file around, to remove a race condition
+	# with arclamp-generate-svgs between gzip and mv.  This also
+	# ensures we don't lose the original if gzip succeeds but mv
+	# fails.
+	nice gzip -9 -S .gz.tmp -N -k "$filename"
+	if mv "$filename.gz.tmp" "$filename.gz"; then
+		rm "$filename"
+	else
+		rm "$filename.gz.tmp"
+	fi
+}
+
+for log in `find /srv/arclamp/logs -type f -name '*.log' -mtime +$days || true`; do
+	compress_log "$log"
+done
