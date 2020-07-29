@@ -18,6 +18,16 @@ set -u
 set +C # OK to clobber out-of-date SVGs
 shopt -s globstar nullglob
 
+function exit_if_already_running() {
+  local pid_file="$1/arclamp-generate-svgs.pid"
+  local other_pid=$(expr $(cat $pid_file 2>/dev/null) + 0 || true)
+  if [ -d "/proc/${other_pid:-0}" ]; then
+    echo "arclamp-generate-svgs is already running (PID $other_pid), exiting"
+    exit 0
+  fi
+  echo $$ >$pid_file
+}
+
 function svg_path_for_log_and_fqfn_label() {
   # Log file, e.g. /srv/xenon/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
   local log_path="$1"
@@ -64,9 +74,9 @@ function stream_log_lines_mentioning_fqfn() {
   esac
 
   if [ "$fqfn" == "{main}" ]; then
-    nice ${cmd_prefix}cat "$log"
+    ${cmd_prefix}cat "$log"
   else
-    nice ${cmd_prefix}grep -a ";${fqfn};" "$log"
+    ${cmd_prefix}grep -a ";${fqfn};" "$log"
   fi
 }
 
@@ -85,15 +95,21 @@ function update_log_svgs_for_fqfn() {
 
   # Bail if both flamegraphs are already up to date
   if [ -s "$fsvg" ] && [ "$fsvg" -nt "$log" ] && [ -s "$rsvg" ] && [ "$rsvg" -nt "$log" ]; then
-    return
+    # If flamegraph.pl crashes, it will leave a 20-byte file behind (T259167).
+    # We want those to be re-generated.
+    fsize=$(stat -c%s "$fsvg")
+    rsize=$(stat -c%s "$rsvg")
+    if [ "$fsize" -gt 20 ] && [ "$rsize" -gt 20 ]; then
+      return
+    fi
   fi
   # shellcheck disable=SC2174
   mkdir -m0755 -p "$(dirname "$fsvg")" "$(dirname "$rsvg")"
   echo "Generating $fsvg and $rsvg..."
   # Scan the log file once, feeding the same output to forward and reverse flamegraph processes
   stream_log_lines_mentioning_fqfn "$log" "$fqfn" | tee \
-    >(nice $flamegraph --minwidth=1 --title="$ftitle" | gzip -9 >"$fsvg") \
-    >(nice $flamegraph --minwidth=1 --reverse --colors=blue --title="$rtitle" | gzip -9 >"$rsvg") \
+    >($flamegraph --minwidth=1 --title="$ftitle" | gzip -9 >"$fsvg") \
+    >($flamegraph --minwidth=1 --reverse --colors=blue --title="$rtitle" | gzip -9 >"$rsvg") \
     > /dev/null
 }
 
@@ -106,7 +122,7 @@ function update_svgs_for_existing_logs() {
     [MediaWiki::doPostOutputShutdown]="PostSend"
   )
 
-  for log in "$data_dir"/**/*.log{,.gz}; do
+  while IFS= read -r -d $'\0' log; do
     # T243762: It's possible for the log to be removed between when
     # the shell glob is calculated and when all files are processed.
     [ -r "$log" ] || continue
@@ -119,7 +135,7 @@ function update_svgs_for_existing_logs() {
       done
       ;;
     esac
-  done
+  done < <(find "$data_dir/logs" -type f -name '*.log' -o -name '*.log.gz' -print0 | shuf -z)
 }
 
 function delete_svgs_for_nonexistant_logs() {
@@ -133,5 +149,7 @@ function delete_svgs_for_nonexistant_logs() {
   done
 }
 
+exit_if_already_running /srv/arclamp
 update_svgs_for_existing_logs /srv/arclamp
 delete_svgs_for_nonexistant_logs /srv/arclamp
+rm -f /srv/arclamp/arclamp-generate-svgs.pid
