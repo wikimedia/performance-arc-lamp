@@ -135,7 +135,7 @@ function update_svgs_for_existing_logs() {
       done
       ;;
     esac
-  done < <(find "$data_dir/logs" -type f -name '*.log' -o -name '*.log.gz' -print0 | shuf -z)
+  done < <(find "$data_dir/logs" -type f '(' -name '*.log' -o -name '*.log.gz' ')' -print0 | shuf -z)
 }
 
 function delete_svgs_for_nonexistant_logs() {
