@@ -70,11 +70,16 @@ function update_metrics() {
 	done
 
 	local oldest_tmp=`find $data_dir/logs -name "*.log.gz.tmp" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
-	if [ -n "$oldest_tmp" ]; then
-		echo "# HELP arclamp_oldest_temporary_file_seconds Timestamp of oldest temporary file" >>$tmpout
-		echo "# TYPE arclamp_oldest_temporary_file_seconds gauge" >>$tmpout
-		echo "arclamp_oldest_temporary_file_seconds $oldest_tmp" >>$tmpout
+	if [ -z "$oldest_tmp" ]; then
+		# Pretend there's a file with the current timestamp, so that
+		# Prometheus won't interpolate from the last reported value.
+		# (We plan to alert if temporary file age is over a certain
+		# threshold.)
+		oldest_tmp=`date +%s.0`
 	fi
+	echo "# HELP arclamp_oldest_temporary_file_seconds Timestamp of oldest temporary file" >>$tmpout
+	echo "# TYPE arclamp_oldest_temporary_file_seconds gauge" >>$tmpout
+	echo "arclamp_oldest_temporary_file_seconds $oldest_tmp" >>$tmpout
 
 	echo "# HELP arclamp_oldest_svg_seconds Timestamp of oldest output file" >>$tmpout
 	echo "# TYPE arclamp_oldest_svg_seconds gauge" >>$tmpout
@@ -94,10 +99,21 @@ function update_metrics() {
 	for period in $periods; do
 		for profiler in $profilers; do
 			for entry in $entries; do
-				local newest=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
+				local newest=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -size +21c -printf '%T@\n' 2>/dev/null | sort | tail -1`
 				if [ -n "$newest" ]; then
 					print_metric arclamp_newest_svg_seconds "$period" "$profiler" "$entry" "$oldest" "" >>$tmpout
 				fi
+			done
+		done
+	done
+
+	echo "# HELP arclamp_truncated_svg_files_total Number of output files 20 bytes or smaller" >>$tmpout
+	echo "# TYPE arclamp_truncated_svg_files_total gauge" >>$tmpout
+	for period in $periods; do
+		for profiler in $profilers; do
+			for entry in $entries; do
+				local count=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -size -21c | wc -l`
+				print_metric arclamp_truncated_svg_files_total "$period" "$profiler" "$entry" "$count" "" >>$tmpout
 			done
 		done
 	done
