@@ -9,6 +9,7 @@ See [performance.wikimedia.org](https://performance.wikimedia.org/php-profiling/
 * Your PHP application, with [php-excimer](https://github.com/wikimedia/php-excimer) and php-redis.
 * A Redis server.
 * Python, with python-redis and python-yaml.
+* The `ifne` command from [moreutils](https://joeyh.name/code/moreutils/).
 
 ## Quick start
 
