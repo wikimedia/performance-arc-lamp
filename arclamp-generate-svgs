@@ -111,8 +111,7 @@ function update_log_svgs_for_fqfn() {
     # Scan the log file once, feeding the same output to forward and reverse flamegraph processes
     stream_log_lines_mentioning_fqfn "$log" "$fqfn" | tee \
       >(ifne sh -c "$flamegraph --minwidth=1 --title=\"$ftitle\" | gzip -9 >\"$fsvg\"") \
-      >(ifne sh -c "$flamegraph --minwidth=1 --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\"") \
-      >/dev/null
+      | ifne sh -c "$flamegraph --minwidth=1 --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\""
   else
     # Large files need to be processed serially to reduced RAM usage; see T259167.
     echo "Generating $fsvg..."
@@ -121,6 +120,11 @@ function update_log_svgs_for_fqfn() {
     echo "Generating $rsvg..."
     stream_log_lines_mentioning_fqfn "$log" "$fqfn" | \
       ifne sh -c "$flamegraph --minwidth=1 --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\""
+  fi
+
+  if [ -n "$ST_AUTH" -a -x /usr/bin/swift ]; then
+    [ ! -s "$fsvg" ] || swift upload arclamp-svgs-$period "$fsvg" --object-name `basename "$fsvg"` -H content-encoding:gzip
+    [ ! -s "$rsvg" ] || swift upload arclamp-svgs-$period "$rsvg" --object-name `basename "$rsvg"` -H content-encoding:gzip
   fi
 }
 

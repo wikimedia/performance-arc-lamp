@@ -15,6 +15,10 @@ set -e
 set -u
 shopt -s globstar nullglob
 
+# SWIFT_RETENTION specifies the number of seconds to keep compressed
+# logs in Swift.
+SWIFT_RETENTION=94608000 # three years
+
 function compress_log() {
 	local filename="$1"
 	echo "Compressing $filename"
@@ -40,4 +44,17 @@ function compress_log() {
 
 for log in `find /srv/arclamp/logs -type f -name '*.log' -mtime +$days || true`; do
 	compress_log "$log"
+
+	# Copy to Swift if configured.  ($ST_AUTH expression prevents -u
+	# from complaining if unset.)
+	#
+	# See https://docs.openstack.org/python-swiftclient/latest for
+	# more details on the Swift CLI.
+	if [ -s "$log.gz" -a -n "${ST_AUTH-}" -a -x /usr/bin/swift ]; then
+		period=$(basename $(dirname "$log"))
+		swift upload arclamp-logs-$period "$log.gz" \
+			  --object-name `basename "$log.gz"` \
+			  -H content-encoding:gzip \
+			  -H x-delete-after:$SWIFT_RETENTION
+	fi
 done
