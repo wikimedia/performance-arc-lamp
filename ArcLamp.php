@@ -3,7 +3,7 @@
  * Arc Lamp collector <https://github.com/wikimedia/arc-lamp>
  *
  * Copyright 2019 Timo Tijhof <krinklemail@gmail.com>
- * Copyright 2015 Ori Livneh <ori@wikimedia.org>
+ * Copyright 2014 Ori Livneh <ori@wikimedia.org>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

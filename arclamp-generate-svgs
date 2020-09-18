@@ -29,7 +29,7 @@ function exit_if_already_running() {
 }
 
 function svg_path_for_log_and_fqfn_label() {
-  # Log file, e.g. /srv/xenon/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
+  # Log file, e.g. /srv/arclamp/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
   local log_path="$1"
   # Stable label for a fully-qualified function name or "{main}"
   local function_label="$2"
@@ -46,19 +46,19 @@ function svg_path_for_log_and_fqfn_label() {
   fi
   svg_path+=".svgz"
 
-  # SVG file, e.g. /srv/xenon/svgs/INTERVAL/YYYY-MM-DD.excimer.ENTRY(.fn-FUNCTION)?(.reversed.)?.svgz
+  # SVG file, e.g. /srv/arclamp/svgs/INTERVAL/YYYY-MM-DD.excimer.ENTRY(.fn-FUNCTION)?(.reversed.)?.svgz
   echo "$svg_path"
 }
 
 function source_log_path_for_svg() {
-  # SVG file, e.g. /srv/xenon/svgs/INTERVAL/YYYY-MM-DD.excimer.ENTRY(.fn-FUNCTION)?(.reversed.)?.svgz
+  # SVG file, e.g. /srv/arclamp/svgs/INTERVAL/YYYY-MM-DD.excimer.ENTRY(.fn-FUNCTION)?(.reversed.)?.svgz
   local svg_path="$1"
 
   local log_path
   log_path=$(sed -e 's#/svgs/#/logs/#g' -e 's#\(\.fn-[^./]*\)\?\(\.reversed\)\?\.svgz\?$##' <<<"$svg_path")
   log_path+=".log"
 
-  # Log file, e.g. /srv/xenon/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
+  # Log file, e.g. /srv/arclamp/logs/INTERVAL/YYYY-MM-DD.excimer.ENTRY.log
   echo "$log_path"
 }
 

@@ -141,9 +141,9 @@ args = arg_parser.parse_args()
 
 # Legacy: the 'xenon' channel has a generic filename for now.
 if args.channel == 'xenon':
-    glob_pattern = '/srv/xenon/logs/%(resolution)s/*.%(entrypoint)s.log*'
+    glob_pattern = '/srv/arclamp/logs/%(resolution)s/*.%(entrypoint)s.log*'
 else:
-    glob_pattern = '/srv/xenon/logs/%(resolution)s/*.%(channel)s.%(entrypoint)s.log*'
+    glob_pattern = '/srv/arclamp/logs/%(resolution)s/*.%(channel)s.%(entrypoint)s.log*'
 file_names = glob.glob(glob_pattern % vars(args))
 file_names.sort(key=os.path.getmtime)
 file_names = args.slice(file_names)

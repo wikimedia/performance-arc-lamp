@@ -45,7 +45,7 @@ These traces can be collected from a PHP callback and dispatched to a socket or 
 
 The default in `ArcLamp.php` is to send the trace to a Redis pubsub channel.
 
-> _Arc Lamp was originally created in 2015 for [Xenon](https://github.com/facebook/hhvm/wiki/Profiling#xenon), a sampling profiler native to the HHVM engine for PHP. To use Arc Lamp with HHVM Xenon, see [arc-lamp v1.0](https://gerrit.wikimedia.org/g/performance/arc-lamp/+/1.0.0/) instead._
+> _Arc Lamp was originally created in 2014 for [Xenon](https://github.com/facebook/hhvm/wiki/Profiling#xenon), a sampling profiler native to the HHVM engine for PHP. To use Arc Lamp with HHVM Xenon, see [arc-lamp v1.0](https://gerrit.wikimedia.org/g/performance/arc-lamp/+/1.0.0/) instead._
 
 ### Create trace logs
 
