@@ -19,6 +19,10 @@
  */
 namespace Wikimedia;
 
+use Exception;
+use ExcimerProfiler;
+use Redis;
+
 class ArcLamp {
 
 	/**
