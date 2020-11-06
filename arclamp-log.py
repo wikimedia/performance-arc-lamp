@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
   arclamp-log
@@ -11,10 +11,6 @@
 """
 from __future__ import print_function
 
-import sys
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
 import argparse
 import datetime
 import errno
@@ -22,6 +18,7 @@ import fnmatch
 import os
 import os.path
 import re
+import sys
 
 import redis
 import yaml
@@ -92,7 +89,7 @@ class TimeLog(object):
         self.samples_skipped = 0
         self.path = os.path.join(self.base_path, period)
         try:
-            os.makedirs(self.path, 0755)
+            os.makedirs(self.path, 0o755)
         except OSError as exc:
             if exc.errno != errno.EEXIST:
                 raise
