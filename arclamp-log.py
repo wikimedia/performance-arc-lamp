@@ -109,8 +109,9 @@ class TimeLog(object):
         if not os.path.isfile(file_path):
             self.prune_files(tag)
         # T169249 buffering=1 makes it line-buffered
-        with open(file_path, mode='a', buffering=1) as f:
-            print(message, file=f)
+        with open(file_path, mode='ab', buffering=1) as f:
+            f.write(message)
+            f.write(b"\n")
 
     def prune_files(self, tag):
         mask = '*.%s.log*' % tag
