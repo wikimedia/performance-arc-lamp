@@ -1,3 +1,5 @@
+[![Packagist](https://img.shields.io/packagist/v/wikimedia/arc-lamp.svg?style=flat)](https://packagist.org/packages/wikimedia/arc-lamp)
+
 # Arc Lamp
 
 Arc Lamp helps gather stack traces from a running PHP 7 application
