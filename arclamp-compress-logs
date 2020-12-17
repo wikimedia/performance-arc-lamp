@@ -42,7 +42,25 @@ function compress_log() {
 	fi
 }
 
+function sort_log() {
+	local filename="$1"
+	echo "Sorting $filename"
+	rm -vf "$filename.tmp"
+
+	# Sorting the file first makes compression much more effective.
+	# (Final compressed size is ~4x-6x bigger if input is unsorted).
+	#
+	# LC_ALL=C ensures sorting is by byte values rather than symbols,
+	# which is a lot slower.
+	LC_ALL=C nice sort -o "$filename.tmp" "$filename"
+
+	# Make the sorted file have the same mtime as the unsorted input.
+	touch "$filename.tmp" -m --reference="$filename"
+	mv "$filename.tmp" "$filename"
+}
+
 for log in `find /srv/arclamp/logs -type f -name '*.log' -mtime +$days || true`; do
+	sort_log "$log"
 	compress_log "$log"
 
 	# Copy to Swift if configured.  ($ST_AUTH expression prevents -u
