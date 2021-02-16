@@ -108,6 +108,8 @@ class TimeLog(object):
         file_path = os.path.join(self.path, base_name)
         if not os.path.isfile(file_path):
             self.prune_files(tag)
+        # T273640 replace non-printable characters in message
+        message = ''.join(c if 31 < ord(c) < 127 else '?' for c in message)
         # T169249 buffering=1 makes it line-buffered
         with open(file_path, mode='ab', buffering=1) as f:
             f.write(message)
