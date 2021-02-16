@@ -15,6 +15,10 @@ function print_metric() {
 	local value="$5"
 	local compressed="$6"
 
+	if [ -z "$value" ]; then
+		return
+	fi
+
 	# Sanitize values which come from filesystem
 	period=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$period"`
 	profiler=`sed -E 's/[^a-zA-Z0-9_.-]/_/g' <<< "$profiler"`
@@ -41,13 +45,9 @@ function update_metrics() {
 		for profiler in $profilers; do
 			for entry in $entries; do
 				local oldest=`find $data_dir/logs/$period -name "*$profiler.$entry.log" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
-				if [ -n "$oldest" ]; then
-					print_metric arclamp_oldest_log_seconds "$period" "$profiler" "$entry" "$oldest" "no" >>$tmpout
-				fi
+				print_metric arclamp_oldest_log_seconds "$period" "$profiler" "$entry" "$oldest" "no" >>$tmpout
 				oldest=`find $data_dir/logs/$period -name "*$profiler.$entry.log.gz" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
-				if [ -n "$oldest" ]; then
-					print_metric arclamp_oldest_log_seconds "$period" "$profiler" "$entry" "$oldest" "yes" >>$tmpout
-				fi
+				print_metric arclamp_oldest_log_seconds "$period" "$profiler" "$entry" "$oldest" "yes" >>$tmpout
 			done
 		done
 	done
@@ -58,13 +58,9 @@ function update_metrics() {
 		for profiler in $profilers; do
 			for entry in $entries; do
 				local newest=`find $data_dir/logs/$period -name "*$profiler.$entry.log" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
-				if [ -n "$newest" ]; then
-					print_metric arclamp_newest_log_seconds "$period" "$profiler" "$entry" "$newest" "no" >>$tmpout
-				fi
+				print_metric arclamp_newest_log_seconds "$period" "$profiler" "$entry" "$newest" "no" >>$tmpout
 				newest=`find $data_dir/logs/$period -name "*$profiler.$entry.log.gz" -type f -printf '%T@\n' 2>/dev/null | sort | tail -1`
-				if [ -n "$newest" ]; then
-					print_metric arclamp_newest_log_seconds "$period" "$profiler" "$entry" "$newest" "yes" >>$tmpout
-				fi
+				print_metric arclamp_newest_log_seconds "$period" "$profiler" "$entry" "$newest" "yes" >>$tmpout
 			done
 		done
 	done
@@ -87,9 +83,7 @@ function update_metrics() {
 		for profiler in $profilers; do
 			for entry in $entries; do
 				local oldest=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -printf '%T@\n' 2>/dev/null | sort | head -1`
-				if [ -n "$oldest" ]; then
-					print_metric arclamp_oldest_svg_seconds "$period" "$profiler" "$entry" "$oldest" "" >>$tmpout
-				fi
+				print_metric arclamp_oldest_svg_seconds "$period" "$profiler" "$entry" "$oldest" "" >>$tmpout
 			done
 		done
 	done
@@ -100,9 +94,7 @@ function update_metrics() {
 		for profiler in $profilers; do
 			for entry in $entries; do
 				local newest=`find $data_dir/svgs/$period -name "*$profiler.$entry.*svgz" -type f -size +21c -printf '%T@\n' 2>/dev/null | sort | tail -1`
-				if [ -n "$newest" ]; then
-					print_metric arclamp_newest_svg_seconds "$period" "$profiler" "$entry" "$oldest" "" >>$tmpout
-				fi
+				print_metric arclamp_newest_svg_seconds "$period" "$profiler" "$entry" "$newest" "" >>$tmpout
 			done
 		done
 	done
