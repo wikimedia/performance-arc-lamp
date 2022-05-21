@@ -1,42 +1,50 @@
 {
-    "name": "wikimedia/arc-lamp",
-    "description": "Flame graphs and log processing for PHP stack traces.",
-    "keywords": [ "sampling", "profiling", "performance", "flamegraph", "excimer" ],
-    "license": "Apache-2.0",
-    "authors": [
-        {
-            "name": "Ori Livneh",
-            "email": "ori@wikimedia.org"
-        },
-        {
-            "name": "Timo Tijhof",
-            "email": "krinklemail@gmail.com"
-        }
-    ],
-    "autoload": {
-        "files": [ "ArcLamp.php" ]
-    },
-    "require": {
-        "php": ">=7.2.0",
-        "ext-redis": "*"
-    },
-    "require-dev": {
-        "mediawiki/minus-x": "1.1.1",
-        "php-parallel-lint/php-console-highlighter": "0.5.0",
-        "php-parallel-lint/php-parallel-lint": "1.3.0"
-    },
-    "scripts": {
-        "test": [
-            "parallel-lint . --exclude vendor",
-            "minus-x check ."
-        ],
-        "fix": [
-            "minus-x fix ."
-        ]
-    },
-    "config": {
-        "platform": {
-            "ext-redis": "3.1.1"
-        }
-    }
+	"name": "wikimedia/arc-lamp",
+	"description": "Flame graphs and log processing for PHP stack traces.",
+	"keywords": [
+		"sampling",
+		"profiling",
+		"performance",
+		"flamegraph",
+		"excimer"
+	],
+	"license": "Apache-2.0",
+	"authors": [
+		{
+			"name": "Ori Livneh",
+			"email": "ori@wikimedia.org"
+		},
+		{
+			"name": "Timo Tijhof",
+			"email": "krinklemail@gmail.com"
+		}
+	],
+	"autoload": {
+		"files": [
+			"ArcLamp.php"
+		]
+	},
+	"require": {
+		"php": ">=7.2.0",
+		"ext-redis": "*"
+	},
+	"require-dev": {
+		"mediawiki/minus-x": "1.1.1",
+		"php-parallel-lint/php-console-highlighter": "1.0.0",
+		"php-parallel-lint/php-parallel-lint": "1.3.2"
+	},
+	"scripts": {
+		"test": [
+			"parallel-lint . --exclude vendor",
+			"minus-x check ."
+		],
+		"fix": [
+			"minus-x fix ."
+		]
+	},
+	"config": {
+		"platform": {
+			"ext-redis": "3.1.1"
+		}
+	}
 }
