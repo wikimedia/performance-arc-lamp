@@ -1,9 +1,9 @@
 <?php
 /**
- * Arc Lamp collector <https://github.com/wikimedia/arc-lamp>
+ * Arc Lamp client <https://gerrit.wikimedia.org/g/performance/arc-lamp>
  *
- * Copyright 2019 Timo Tijhof <krinklemail@gmail.com>
- * Copyright 2014 Ori Livneh <ori@wikimedia.org>
+ * Copyright Ori Livneh <ori@wikimedia.org>
+ * Copyright Timo Tijhof <krinkle@fastmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,56 +24,80 @@ use ExcimerProfiler;
 use Redis;
 
 class ArcLamp {
-
 	/**
+	 * Collect stack samples in the background of this request.
+	 *
+	 * If a sample is taken during this web request, it will be flushed
+	 * to the specified Redis server on the "excimer" pubsub channel.
 	 *
 	 * @param array $options
 	 *   - excimer-period: The sampling interval (in seconds)
-	 *   - redis-host: The Redis host to flush samples to
-	 *   - redis-port: The Redis port
+	 *     Default: 60.
+	 *     This generally means you will collect at most one sample from
+	 *     any given web request. The start time is staggered by Excimer
+	 *     to ensure equal distribution and fair chance to all code,
+	 *     including early on in the request.
+	 *   - redis-host: Redis host to flush samples to.
+	 *     Default: "127.0.0.1".
+	 *   - redis-port: Redis port
+	 *     Default: 6379.
 	 *   - redis-timeout: The Redis socket timeout (in seconds)
-	 *   - redis-channel: The Redis pubsub channel name
+	 *     Default: 0.1.
+	 *   - statsd-host: [optional] StatsD host address (ip:port or hostname:port),
+	 *     to report metrics about collection failures.
+	 *   - statsd-prefix: For example `"MyApplication."`, prepended to
+	 *     the `arclamp_client_error.<reason>` and `arclamp_client_discarded.<reason>`
+	 *     counter metrics.
+	 *     Default: "".
 	 */
 	final public static function collect( array $options = [] ) {
 		$options += [
-			// Sample only once per minute in production.
-			// This generally means we collect at most one sample from any given web request.
-			// The start time is staggered by Excimer.
 			'excimer-period' => 60,
 			'redis-host' => '127.0.0.1',
 			'redis-port' => 6379,
 			'redis-timeout' => 0.1,
-			'redis-channel' => 'excimer',
 		];
-		if ( !extension_loaded( 'excimer' ) ) {
-			return;
-		}
 
-		// Keep the object in scope until the end of the request
-		static $prof;
-		$prof = new ExcimerProfiler;
-		$prof->setEventType( EXCIMER_CPU );
-		$prof->setPeriod( $options['excimer-period'] );
-		$prof->setMaxDepth( 250 );
-		// Flush for every sample (no buffering). There's no point in waiting for more than
-		// one sample to arrive, because in production our sample period is 1 minute which is
-		// generally more than a typical web request lives for.
-		$prof->setFlushCallback(
-			function ( $log ) use ( $options ) {
-				self::flush( $log, $options );
-			},
-			1
-		);
-		$prof->start();
+		if ( PHP_SAPI !== 'cli' && extension_loaded( 'excimer' ) ) {
+			// Used for unconditional sampling of production web requests.
+			self::excimerSetup( $options );
+		}
 	}
 
 	/**
-	 * The callback for profiling. This is called every time Excimer collects a stack trace.
+	 * Start Excimer sampling profiler in production.
 	 *
-	 * @param string $log
 	 * @param array $options
 	 */
-	final public static function flush( $log, array $options ) {
+	final public static function excimerSetup( $options ) {
+		// Keep the object in scope until the end of the request
+		static $realProf;
+
+		$realProf = new ExcimerProfiler;
+		$realProf->setEventType( EXCIMER_REAL );
+		$realProf->setPeriod( 60 );
+		// Limit the depth of stack traces to 250 (T176916)
+		$realProf->setMaxDepth( 250 );
+		$realProf->setFlushCallback(
+			static function ( $log ) use ( $options ) {
+				$logLines = explode( "\n", $log->formatCollapsed() );
+				$redisChannel = 'excimer';
+				self::excimerFlushToArclamp( $logLines, $options, $redisChannel );
+			},
+			/* $maxSamples = */ 1
+		);
+		$realProf->start();
+	}
+
+	/**
+	 * Flush callback, called any time Excimer samples a stack trace in production.
+	 *
+	 * @param string[] $logLines Result of ExcimerLog::formatCollapsed()
+	 * @param array $options
+	 * @param string $redisChannel
+	 */
+	public static function excimerFlushToArclamp( $logLines, $options, $redisChannel ) {
+		$error = null;
 		try {
 			$redis = new Redis();
 			$ok = $redis->connect(
@@ -81,44 +105,54 @@ class ArcLamp {
 				$options['redis-port'],
 				$options['redis-timeout']
 			);
-			if ( $ok ) {
-				// arclamp-log expects the first frame to be a PHP file. This file name is used to
-				// group traces by entry point. In most cases, the stack starts with the entry
-				// point already. But, for destructor callbacks in PHP 7.2+, the stack starts
-				// without the original entry frame. For example, a line may look like this:
-				// "LBFactory::__destruct;LBFactory::LBFactory::shutdown;… 1".
+			if ( !$ok ) {
+				$error = 'connect_error';
+			} else {
 				$firstFrame = realpath( $_SERVER['SCRIPT_FILENAME'] ) . ';';
-				$collapsed = $log->formatCollapsed();
-				foreach ( explode( "\n", $collapsed ) as $line ) {
-					if ( ( substr_count( $line, ';' ) + 1 ) >= 249 ) {
-						// Discard lines with 249 or more stack depth. These are likely incomplete,
-						// per ExcimerProfiler::setMaxDepth. We discard these because depth limit
-						// is enforced by trimming from the root of the stack (from entry point down).
-						// This makes them unusable for flame graphs. <https://phabricator.wikimedia.org/T176916>
-						continue;
-					}
+				foreach ( $logLines as $line ) {
 					if ( $line === '' ) {
-						// Discard the empty line at the end of $collapsed.
+						// formatCollapsed() ends with a line break
 						continue;
 					}
 
-					// For stacks from destructor callbacke etc, prepend the entry point
-					// as the real parent frame. This substring check includes a semicolon
-					// to avoid false positives.
+					// There are two ways a stack trace may be missing the first few frames:
+					//
+					// 1. Destructor callbacks, as of PHP 7.2, may be formatted as
+					//    "LBFactory::__destruct;LBFactory::LBFactory::shutdown;… 1"
+					// 2. Stack traces that are longer than the configured maxDepth, will be
+					//    missing their top-most frames in favour of excimer_truncated (T176916)
+					//
+					// Arc Lamp requires the top frame to be the PHP entry point file.
+					// If the first frame isn't the expected entry point, prepend it.
+					// This check includes the semicolon to avoid false positives.
 					if ( substr( $line, 0, strlen( $firstFrame ) ) !== $firstFrame ) {
 						$line = $firstFrame . $line;
 					}
-					$redis->publish( $options['redis-channel'], $line );
+					$redis->publish( $redisChannel, $line );
 				}
 			}
-		} catch ( Exception $e ) {
-			// Ignore. Known failure scenarios:
+		} catch ( \Exception $e ) {
+			// Known failure scenarios:
 			//
 			// - "RedisException: read error on connection"
 			//   Each publish() in the above loop writes data to Redis and
 			//   subsequently reads from the socket for Redis' response.
-			//   If a socket read takes longer than $timeout, it throws.
-			//   <https://phabricator.wikimedia.org/T206092>
+			//   If any socket read takes longer than $timeout, it throws (T206092).
+			//   As of writing, this is rare (a few times per day at most),
+			//   which is considered an acceptable loss in profile samples.
+			$error = 'exception';
+		}
+
+		if ( $error ) {
+			$dest = $options['statsd-host'] ?? null;
+			$prefix = $options['statsd-prefix'] ?? '';
+			if ( $dest ) {
+				$sock = socket_create( AF_INET, SOCK_DGRAM, SOL_UDP );
+				if ( $error ) {
+					$stat = $prefix . "arclamp_client_error.{$error}:1|c";
+					@socket_sendto( $sock, $stat, strlen( $stat ), 0, $dest, 8125 );
+				}
+			}
 		}
 	}
 }

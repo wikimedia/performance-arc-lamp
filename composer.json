@@ -16,7 +16,7 @@
 		},
 		{
 			"name": "Timo Tijhof",
-			"email": "krinklemail@gmail.com"
+			"email": "krinkle@fastmail.com"
 		}
 	],
 	"autoload": {
@@ -25,7 +25,7 @@
 		]
 	},
 	"require": {
-		"php": ">=7.2.0",
+		"php": ">=7.4.0",
 		"ext-redis": "*"
 	},
 	"require-dev": {

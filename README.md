@@ -4,14 +4,18 @@
 
 Arc Lamp helps gather stack traces from a running PHP 7 application
 and publish them in the form of flame graphs and trace logs.
+
 See [performance.wikimedia.org](https://performance.wikimedia.org/php-profiling/) for a live example.
 
 ## Prerequisites
 
-* Your PHP application, with [php-excimer](https://github.com/wikimedia/php-excimer) and php-redis.
+Client:
+* Your PHP application, with [php-excimer](https://www.mediawiki.org/wiki/Excimer), and php-redis.
+
+Processor:
 * A Redis server.
-* Python, with python-redis and python-yaml.
-* The `ifne` command from [moreutils](https://joeyh.name/code/moreutils/).
+* Python, with `python-redis` and `python-yaml`.
+* The `ifne` command from `moreutils` ([Debian](https://packages.debian.org/stable/moreutils), [Homebrew](https://formulae.brew.sh/formula/moreutils), [source](https://joeyh.name/code/moreutils/)).
 
 ## Quick start
 
@@ -23,9 +27,11 @@ Wikimedia\ArcLamp::collect( [ 'redis-host' => '127.0.0.1' ] );
 
 To automatically enable this for all web requests and entry points, you can use the PHP
 [`auto_prepend_file`](https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file)
-option. See [Wikimedia's own configuration](https://github.com/wikimedia/operations-mediawiki-config/blob/de23fd42e09b4140c37b6836c2d8057d439110ad/wmf-config/PhpAutoPrepend.php#L5) for example.
+option. See [Wikimedia's own configuration](https://github.com/wikimedia/operations-mediawiki-config/blob/5959dc3e7610aa06d9307b42baed17a5bf1be719/wmf-config/PhpAutoPrepend.php#L5) for example.
 
 ## How it works
+
+_See also: [Profiling PHP in production](https://techblog.wikimedia.org/2021/03/03/profiling-php-in-production-at-scale/) on Wikimedia Techblog._
 
 ![](./docs/ArcLamp_2019_diagram.png)
 
@@ -37,7 +43,7 @@ The Arc Lamp pipeline comprises of three stages:
 
 ### Capture stack traces
 
-The [php-excimer](https://github.com/wikimedia/php-excimer) extension is used to periodically
+The [php-excimer](https://www.mediawiki.org/wiki/Excimer) extension is used to periodically
 collect a backtrace. It has no run-time overhead by default. When enabled from a web request,
 it periodically schedules a graceful interrupt at which point it captures a backtrace.
 
