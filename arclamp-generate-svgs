@@ -76,7 +76,7 @@ function stream_log_lines_mentioning_fqfn() {
   if [ "$fqfn" == "{main}" ]; then
     ${cmd_prefix}cat "$log"
   else
-    ${cmd_prefix}grep -a ";${fqfn};" "$log"
+    ${cmd_prefix}grep -F -a ";${fqfn};" "$log"
   fi
 }
 
@@ -133,8 +133,8 @@ function update_svgs_for_existing_logs() {
 
   declare -A label_by_fqfn_with_dedicated_svgs=(
     [EditAction::show]="EditAction"
-    [MediaWiki::doPreOutputCommit]="PreSend"
-    [MediaWiki::doPostOutputShutdown]="PostSend"
+    [MediaWiki\\MediaWikiEntryPoint::prepareForOutput]="PreSend"
+    [MediaWiki\\MediaWikiEntryPoint::doPostOutputShutdown]="PostSend"
   )
 
   while IFS= read -r -d $'\0' log; do
