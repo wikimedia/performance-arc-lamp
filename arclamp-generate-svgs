@@ -135,6 +135,7 @@ function update_svgs_for_existing_logs() {
     [EditAction::show]="EditAction"
     [MediaWiki\\MediaWikiEntryPoint::prepareForOutput]="PreSend"
     [MediaWiki\\MediaWikiEntryPoint::doPostOutputShutdown]="PostSend"
+    [UploadBase::performUpload]="Upload"
   )
 
   while IFS= read -r -d $'\0' log; do
