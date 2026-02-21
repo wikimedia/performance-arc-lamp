@@ -10,6 +10,9 @@ if [ ! -x "$flamegraph" ]; then
     fi
 fi
 
+# Common flamegraph.pl flags used across all invocations.
+flamegraph_common_flags="--fonttype=ui-monospace,monospace --fontsize=11 --minwidth=1"
+
 # -e indicates this script should abort if any command does not exit
 # with status 0.  To debug this, you can print commands to stderr as
 # they are executed, by running: `bash -x arclamp-generate-svgs`.
@@ -110,16 +113,16 @@ function update_log_svgs_for_fqfn() {
     echo "Generating $fsvg and $rsvg..."
     # Scan the log file once, feeding the same output to forward and reverse flamegraph processes
     stream_log_lines_mentioning_fqfn "$log" "$fqfn" | tee \
-      >(ifne sh -c "$flamegraph --minwidth=1 --title=\"$ftitle\" | gzip -9 >\"$fsvg\"") \
-      | ifne sh -c "$flamegraph --minwidth=1 --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\""
+      >(ifne sh -c "$flamegraph $flamegraph_common_flags --title=\"$ftitle\" | gzip -9 >\"$fsvg\"") \
+      | ifne sh -c "$flamegraph $flamegraph_common_flags --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\""
   else
     # Large files need to be processed serially to reduced RAM usage; see T259167.
     echo "Generating $fsvg..."
     stream_log_lines_mentioning_fqfn "$log" "$fqfn" | \
-      ifne sh -c "$flamegraph --minwidth=1 --title=\"$ftitle\" | gzip -9 >\"$fsvg\""
+      ifne sh -c "$flamegraph $flamegraph_common_flags --title=\"$ftitle\" | gzip -9 >\"$fsvg\""
     echo "Generating $rsvg..."
     stream_log_lines_mentioning_fqfn "$log" "$fqfn" | \
-      ifne sh -c "$flamegraph --minwidth=1 --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\""
+      ifne sh -c "$flamegraph $flamegraph_common_flags --reverse --colors=blue --title=\"$rtitle\" | gzip -9 >\"$rsvg\""
   fi
 
   if [ -n "$ST_AUTH" -a -x /usr/bin/swift ]; then
