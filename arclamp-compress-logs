@@ -17,7 +17,7 @@ shopt -s globstar nullglob
 
 # SWIFT_RETENTION specifies the number of seconds to keep compressed
 # logs in Swift.
-SWIFT_RETENTION=94608000 # three years
+SWIFT_RETENTION=2592000 # three months
 
 function compress_log() {
 	local filename="$1"
