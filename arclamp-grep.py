@@ -1,30 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-  arclamp-grep -- analyze Arc Lamp logs. This is a CLI tool for parsing trace
-  logs and printing a leaderboard of the functions which are most
-  frequently on-CPU.
-
-  usage: arclamp-grep [--resolution TIME] [--entrypoint NAME]
-                      [--grep STRING] [--slice SLICE] [--count COUNT]
-                      [--channel CHANNEL]
-
-  Options:
-   --resolution TIME   Which log files to analyze. May be one of 'hourly',
-                       'daily', or 'weekly'. (Default: 'daily').
-
-   --entrypoint NAME   Analyze logs for this entry point. May be one of
-                       'all', 'index', 'api', or 'load'). (Default: 'all').
-
-   --grep STRING       Only include stacks which include this string
-
-   --count COUNT       Show the top COUNT entries. (Default: 20).
-
-   --slice SLICE       Slice of files to analyze, in Python slice notation.
-                       Files are ordered from oldest to newest, so
-                       '--slice=-2:' means the two most recent files.
-   --channel CHANNEL   Which channel to look at. defaults to "xenon"
-
   Copyright 2015 Ori Livneh <ori@wikimedia.org>
 
   Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,9 +64,9 @@ def grep(fname, search_string):
                 yield line
 
 
-def iter_funcs(files):
+def iter_funcs(files, search_string):
     for fname in files:
-        for line in grep(fname, args.grep):
+        for line in grep(fname, search_string):
             funcs, count = parse_line(line)
             while funcs and should_skip(funcs[-1]):
                 funcs.pop()
@@ -99,43 +75,50 @@ def iter_funcs(files):
                 for _ in range(count):
                     yield func
 
-
-if {'-h', '--help'}.intersection(sys.argv):
-    sys.exit(textwrap.dedent(__doc__))
-
-arg_parser = argparse.ArgumentParser(add_help=False)
+arg_parser = argparse.ArgumentParser(
+    description='analyze Arc Lamp logs. '
+                'This is a CLI tool for parsing trace logs '
+                'and printing a leaderboard of the functions '
+                'which are most frequently on-CPU.',
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
 arg_parser.add_argument(
     '--resolution',
+    help='Which log files to analyze.',
     default='daily',
     choices=('hourly', 'daily', 'weekly'),
 )
 arg_parser.add_argument(
-    '--count',
-    default=20,
-    type=int,
-    help='show this many entries',
+    '--entrypoint',
+    help='Analyze logs for this entry point.',
+    default='all',
+    choices=('all', 'index', 'api', 'load'),
 )
 arg_parser.add_argument(
-    '--entrypoint',
-    choices=('all', 'index', 'api', 'load'),
-    default='all',
+    '--channel',
+    default='excimer',
+    help='What channel to scan (i.e. log file suffix), '
+         'typically the Redis channel.',
+    choices=('xenon', 'excimer'),
 )
 arg_parser.add_argument(
     '--grep',
+    help='Only include stacks which include this string',
     default='',
-    help='only include stacks which include this string',
+)
+arg_parser.add_argument(
+    '--count',
+    help='Show this many entries when listing the most sampled functions',
+    default=20,
+    type=int,
 )
 arg_parser.add_argument(
     '--slice',
     default='-2:',
-    help='slice of files to consider',
+    help='Slice of files to analyze, in Python slice notation. '
+         'Files are ordered from oldest to newest, '
+         'so --slice="-2:" means the two most recent files.',
     type=slicer,
-)
-arg_parser.add_argument(
-    '--channel',
-    default='xenon',
-    help='What channel to look at',
-    choices=['xenon', 'excimer'],
 )
 args = arg_parser.parse_args()
 
@@ -148,7 +131,7 @@ file_names = glob.glob(glob_pattern % vars(args))
 file_names.sort(key=os.path.getmtime)
 file_names = args.slice(file_names)
 file_names = [fn for fn in file_names if fn.endswith(".log.gz") or fn.endswith(".log")]
-counter = collections.Counter(iter_funcs(file_names))
+counter = collections.Counter(iter_funcs(file_names, args.grep))
 total = sum(1 for _ in counter.elements())
 
 max_len = max(len(f) for f, _ in counter.most_common(args.count))

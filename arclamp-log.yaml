@@ -1,12 +1,13 @@
 base_path: /srv/arclamp/logs
 logs:
-  - format: "%Y-%m-%d_%H"
-    period: hourly
+  - period: hourly
+    format: "%Y-%m-%d_%H.excimer"
     # 336 hourly files = 14 days * 24 hourly files
     retain: 336
-  - format: "%Y-%m-%d"
-    period: daily
-    retain: 45
+  - period: daily
+    format: "%Y-%m-%d.excimer"
+    retain: 90
 redis:
   host: "127.0.0.1"
   port: 6379
+redis_channel: excimer
