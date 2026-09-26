@@ -18,7 +18,6 @@ import fnmatch
 import os
 import os.path
 import re
-import sys
 
 import redis
 import yaml

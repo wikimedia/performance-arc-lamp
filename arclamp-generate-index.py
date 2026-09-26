@@ -14,6 +14,7 @@ import logging
 from swiftclient.service import SwiftService, SwiftError
 import json
 
+
 class Output(object):
     def __enter__(self):
         self.out = NamedTemporaryFile(prefix='arclamp-index-', suffix='.json')
@@ -36,6 +37,7 @@ class Output(object):
         self.out.flush()
         shutil.copy(self.out.name, '/srv/arclamp/index.json')
         os.chmod('/srv/arclamp/index.json', 0o644)
+
 
 logging.basicConfig(level=logging.ERROR)
 logging.getLogger("requests").setLevel(logging.CRITICAL)

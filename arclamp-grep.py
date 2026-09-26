@@ -24,8 +24,7 @@ import gzip
 import operator
 import os.path
 import re
-import sys
-import textwrap
+
 
 # Stack frames which match any of these shell-style wildcard patterns
 # are excluded from the leaderboard.
@@ -74,6 +73,7 @@ def iter_funcs(files, search_string):
                 func = funcs.pop()
                 for _ in range(count):
                     yield func
+
 
 arg_parser = argparse.ArgumentParser(
     description='analyze Arc Lamp logs. '

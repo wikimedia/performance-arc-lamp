@@ -108,3 +108,18 @@ Flamegraphs are generated using Brendan Gregg's [flamegraph.pl](https://github.c
 ## Demo
 
 See [performance.wikimedia.org](https://performance.wikimedia.org/php-profiling/) for a live example.
+
+## Contributing
+
+To lint the PHP code, you need [Composer](https://getcomposer.org/).
+
+```sh
+composer install
+composer test
+```
+
+To lint the Python code, you need [Tox](https://tox.wiki/)
+
+```sh
+tox -v
+```

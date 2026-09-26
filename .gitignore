@@ -1,4 +1,7 @@
 # Development
+/.tox
+/__pycache__
+/*.egg-info
 /vendor
 /composer.lock
 

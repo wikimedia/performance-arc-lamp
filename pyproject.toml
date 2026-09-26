@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arclamp"
+version = "0.0.0"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "redis~=6.1.0",
+  "pyyaml~=6.0.2"
+  # https://packages.debian.org/stable/python3-redis
+  # https://packages.debian.org/stable/python3-yaml
+  # https://pypi.org/project/PyYAML/
+  # https://pypi.org/project/redis/
+]
+
+[project.optional-dependencies]
+lint = [
+  "flake8==7.1.1",
+]
