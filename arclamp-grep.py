@@ -14,7 +14,6 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY CODE, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
 """
 import argparse
 import collections
@@ -99,7 +98,7 @@ arg_parser.add_argument(
     default='excimer',
     help='What channel to scan (i.e. log file suffix), '
          'typically the Redis channel.',
-    choices=('xenon', 'excimer'),
+    choices=('excimer', 'excimer-wall'),
 )
 arg_parser.add_argument(
     '--grep',
@@ -122,11 +121,7 @@ arg_parser.add_argument(
 )
 args = arg_parser.parse_args()
 
-# Legacy: the 'xenon' channel has a generic filename for now.
-if args.channel == 'xenon':
-    glob_pattern = '/srv/arclamp/logs/%(resolution)s/*.%(entrypoint)s.log*'
-else:
-    glob_pattern = '/srv/arclamp/logs/%(resolution)s/*.%(channel)s.%(entrypoint)s.log*'
+glob_pattern = '/srv/arclamp/logs/%(resolution)s/*.%(channel)s.%(entrypoint)s.log*'
 file_names = glob.glob(glob_pattern % vars(args))
 file_names.sort(key=os.path.getmtime)
 file_names = args.slice(file_names)

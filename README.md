@@ -66,18 +66,17 @@ a trace log file for each hour and each day.
 
 Within those two time periods, it segregates the trace logs by entry point of the PHP application.
 
-For example, the MediaWiki application has `index.php`, and `rest.php` (web) and `RunJobs.php` (CLI)
-entry points. This results in the following trace logs:
+For example, the MediaWiki application has `index.php`, `load.php` and `api.php` entry points. This results in the following trace logs:
 
-* `daily/2019-12-21.all.log`
-* `daily/2019-12-21.index.log`
-* `daily/2019-12-21.rest.log`
-* `daily/2019-12-21.RunJobs.log`
+* `daily/2026-09-25.excimer.all.log`
+* `daily/2026-09-25.excimer.api.log`
+* `daily/2026-09-25.excimer.index.log`
+* `daily/2026-09-25.excimer.load.log`
 * …
-* `hourly/2019-12-21_20.all.log`
-* `hourly/2019-12-21_20.index.log`
-* `hourly/2019-12-21_20.rest.log`
-* `hourly/2019-12-21_20.RunJobs.log`
+* `hourly/2026-09-25_18.excimer.all.log`
+* `hourly/2026-09-25_18.excimer.api.log`
+* `hourly/2026-09-25_18.excimer.index.log`
+* `hourly/2026-09-25_18.excimer.load.log`
 * …
 
 The `arclamp-log` service is also responsible for pruning trace logs older than the configured
@@ -90,15 +89,15 @@ associated with each trace log file. It also maintains a _reverse_ version of ea
 
 For example:
 
-* `daily/2019-12-21.all.svgz`
-* `daily/2019-12-21.all.reversed.svgz`
-* `daily/2019-12-21.index.svgz`
-* `daily/2019-12-21.index.reversed.svgz`
+* `daily/2026-09-25.excimer.all.svgz`
+* `daily/2026-09-25.excimer.all.reversed.svgz`
+* `daily/2026-09-25.excimer.index.svgz`
+* `daily/2026-09-25.excimer.index.reversed.svgz`
 * …
-* `hourly/2019-12-21_20.all.svgz`
-* `hourly/2019-12-21_20.all.reversed.svgz`
-* `hourly/2019-12-21_20.index.svgz`
-* `hourly/2019-12-21_20.index.reversed.svgz`
+* `hourly/2026-09-25_18.excimer.all.svgz`
+* `hourly/2026-09-25_18.excimer.all.reversed.svgz`
+* `hourly/2026-09-25_18.excimer.index.svgz`
+* `hourly/2026-09-25_18.excimer.index.reversed.svgz`
 * …
 
 The `arclamp-generate-svgs` script also removes graphs for which a trace log no longer exists.
