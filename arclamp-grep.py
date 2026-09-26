@@ -91,7 +91,7 @@ arg_parser.add_argument(
     '--entrypoint',
     help='Analyze logs for this entry point.',
     default='all',
-    choices=('all', 'index', 'api', 'load'),
+    choices=('all', 'index', 'load', 'api', 'rest', 'RunSingleJob'),
 )
 arg_parser.add_argument(
     '--channel',
