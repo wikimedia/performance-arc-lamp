@@ -110,7 +110,9 @@ class TimeLog(object):
             f.write(b"\n")
 
     def prune_files(self, tag):
-        mask = '*.%s.log*' % tag
+        # T331941: Avoid pruning other channels (e.g. "excimer" pruning "excimer-wall")
+        # Limit matches to self.format suffix, immediately followed by dot separator.
+        mask = re.sub(r'%\w', '*', self.format) + f'.{tag}.log*'
         files = {}
         for base_name in os.listdir(self.path):
             if not fnmatch.fnmatch(base_name, mask):

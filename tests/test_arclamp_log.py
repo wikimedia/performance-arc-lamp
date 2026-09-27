@@ -63,9 +63,13 @@ class TestArclampLog(unittest.TestCase):
             (base_path / 'daily' / '2011-04-04.excimer.all.log'),
             (base_path / 'daily' / '2011-04-04.excimer.index.log'),
             (base_path / 'daily' / '2011-04-05.excimer.all.log'),
+            # T331941: Ignore channel=excimer-wall files despite prefix
+            (base_path / 'daily' / '2011-04-05.excimer-wall.all.log'),
             (base_path / 'daily' / '2011-04-05.excimer.index.log'),
+            (base_path / 'daily' / '2011-04-05.excimer-wall.index.log'),
             (base_path / 'hourly' / '2011-04-01_09.excimer.all.log'),
             (base_path / 'hourly' / '2011-04-01_09.excimer.index.log'),
+            (base_path / 'hourly' / '2011-04-04_09.excimer-wall.index.log'),
             (base_path / 'hourly' / '2011-04-01_14.excimer.all.log'),
             (base_path / 'hourly' / '2011-04-01_14.excimer.index.log'),
             (base_path / 'hourly' / '2011-04-01_23.excimer.all.log'),
@@ -77,7 +81,9 @@ class TestArclampLog(unittest.TestCase):
             (base_path / 'hourly' / '2011-04-04_09.excimer.all.log'),
             (base_path / 'hourly' / '2011-04-04_09.excimer.index.log'),
             (base_path / 'hourly' / '2011-04-05_21.excimer.all.log'),
+            (base_path / 'hourly' / '2011-04-05_21.excimer-wall.all.log'),
             (base_path / 'hourly' / '2011-04-05_21.excimer.api.log'),
+            (base_path / 'hourly' / '2011-04-05_21.excimer-wall.api.log'),
         ]:
             file_path.touch()
             os.utime(file_path, (fake_time, fake_time))
@@ -95,6 +101,8 @@ class TestArclampLog(unittest.TestCase):
             '2011-04-03.excimer.index.log',
             '2011-04-04.excimer.index.log',
             '2011-04-05.excimer.index.log',
+            '2011-04-05.excimer-wall.all.log',
+            '2011-04-05.excimer-wall.index.log',
         ]), set(os.listdir(base_path / 'daily')))
 
         for log in logs:
@@ -106,6 +114,8 @@ class TestArclampLog(unittest.TestCase):
             '2011-04-05.excimer.all.log',
             '2011-04-04.excimer.index.log',
             '2011-04-05.excimer.index.log',
+            '2011-04-05.excimer-wall.all.log',
+            '2011-04-05.excimer-wall.index.log',
         ]), set(os.listdir(base_path / 'daily')))
 
         # Keep 4 hourly "all" and "index"
@@ -120,6 +130,9 @@ class TestArclampLog(unittest.TestCase):
             '2011-04-02_08.excimer.index.log',
             '2011-04-04_09.excimer.index.log',
             '2011-04-03_12.excimer.load.log',
+            '2011-04-04_09.excimer-wall.index.log',
+            '2011-04-05_21.excimer-wall.api.log',
+            '2011-04-05_21.excimer-wall.all.log',
         ]), set(os.listdir(base_path / 'hourly')))
 
 
