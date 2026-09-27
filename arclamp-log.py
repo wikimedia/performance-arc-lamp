@@ -70,21 +70,18 @@ parser = argparse.ArgumentParser()
 #               files exceeding this limit will be removed (oldest first).
 #
 parser.add_argument('config', nargs='?', default='/etc/arclamp-log.yaml')
-args = parser.parse_args()
-
-with open(args.config) as f:
-    config = yaml.safe_load(f)
 
 
 class TimeLog(object):
 
-    base_path = config.get('base_path', '/srv/arclamp/logs')
+    def __init__(self, base_path, period, format, retain, sample_pop=1):
+        self.base_path = base_path
 
-    def __init__(self, period, format, retain, sample_pop=1):
         self.period = period
         self.format = format
         self.retain = retain
         self.sample_pop = sample_pop
+
         self.samples_skipped = 0
         self.path = os.path.join(self.base_path, period)
         try:
@@ -133,32 +130,43 @@ class TimeLog(object):
                 continue
 
 
-logs = [TimeLog(**log) for log in config['logs']]
-conn = redis.Redis(**config['redis'])
-pubsub = conn.pubsub()
-pubsub.subscribe(config.get('redis_channel', 'arclamp'))
-
-
 def get_tag(raw_stack):
     m = re.match(r'(?:[^;]+/)*(\w+).php', raw_stack)
     return m.group(1) if m else None
 
 
-while True:
-    message = pubsub.get_message(timeout=TIMEOUT_SECS)
+def init_logs_from_config(config):
+    base_path = config.get('base_path', '/srv/arclamp/logs')
+    logs = [TimeLog(base_path, **log) for log in config['logs']]
+    return logs
 
-    if message is None:
-        raise RuntimeError("Timed out while waiting for message.")
 
-    # T169249 skip the subscription confirmation message
-    if message['type'] != 'message':
-        continue
+if __name__ == '__main__':
+    args = parser.parse_args()
 
-    data = message['data']
-    time = datetime.datetime.utcnow()
-    tag = get_tag(str(data))
-    for log in logs:
-        if log.in_sample():
-            log.write(data, time, 'all')
-            if tag:
-                log.write(data, time, tag)
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+
+    logs = init_logs_from_config(config)
+    conn = redis.Redis(**config['redis'])
+    pubsub = conn.pubsub()
+    pubsub.subscribe(config.get('redis_channel', 'arclamp'))
+
+    while True:
+        message = pubsub.get_message(timeout=TIMEOUT_SECS)
+
+        if message is None:
+            raise RuntimeError("Timed out while waiting for message.")
+
+        # T169249 skip the subscription confirmation message
+        if message['type'] != 'message':
+            continue
+
+        data = message['data']
+        time = datetime.datetime.utcnow()
+        tag = get_tag(str(data))
+        for log in logs:
+            if log.in_sample():
+                log.write(data, time, 'all')
+                if tag:
+                    log.write(data, time, tag)

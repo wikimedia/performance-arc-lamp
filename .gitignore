@@ -1,9 +1,9 @@
 # Development
 /.tox
-/__pycache__
 /*.egg-info
 /vendor
 /composer.lock
+__pycache__
 
 # Deployment
 /scap/log
